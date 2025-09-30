@@ -6,13 +6,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { membersData } from '@/data/membersData';
-import { Download, Upload, Users } from 'lucide-react';
+import { Download, Upload, Users, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export function BniSorteio() {
   const [pptxFile, setPptxFile] = useState<File | null>(null);
   const [palestrante1, setPalestrante1] = useState<string>('');
   const [palestrante2, setPalestrante2] = useState<string>('');
   const [showResults, setShowResults] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [csvData, setCsvData] = useState<string>('');
   const { toast } = useToast();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -32,7 +35,7 @@ export function BniSorteio() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!pptxFile) {
@@ -62,11 +65,50 @@ export function BniSorteio() {
       return;
     }
 
-    toast({
-      title: 'Sorteio realizado!',
-      description: 'Os arquivos estão prontos para download.',
-    });
-    setShowResults(true);
+    setIsLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('pptx_anterior', pptxFile);
+      formData.append('palestrante1', palestrante1);
+      formData.append('palestrante2', palestrante2);
+
+      const { data, error } = await supabase.functions.invoke('sortear-membros', {
+        body: formData,
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        setCsvData(data.csv);
+        setShowResults(true);
+        toast({
+          title: 'Sorteio realizado!',
+          description: 'Os arquivos estão prontos para download.',
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao sortear:', error);
+      toast({
+        title: 'Erro',
+        description: 'Ocorreu um erro ao realizar o sorteio. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const downloadCSV = () => {
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `ordem_reuniao_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const sortableMembers = membersData.filter(member => 
@@ -162,8 +204,15 @@ export function BniSorteio() {
                 </Select>
               </div>
 
-              <Button type="submit" className="w-full text-lg py-6" size="lg">
-                Sortear Empresários
+              <Button type="submit" className="w-full text-lg py-6" size="lg" disabled={isLoading}>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Sorteando...
+                  </>
+                ) : (
+                  'Sortear Empresários'
+                )}
               </Button>
             </form>
           </CardContent>
@@ -180,23 +229,22 @@ export function BniSorteio() {
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-3">
-              <Button variant="outline" className="w-full justify-start" size="lg" asChild>
-                <a href="#" download>
-                  <Download className="mr-2 h-5 w-5" />
-                  Baixar Planilha de Ordem (CSV)
-                </a>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start" 
+                size="lg" 
+                onClick={downloadCSV}
+              >
+                <Download className="mr-2 h-5 w-5" />
+                Baixar Planilha de Ordem (CSV)
               </Button>
-              <Button variant="outline" className="w-full justify-start" size="lg" asChild>
-                <a href="#" download>
-                  <Download className="mr-2 h-5 w-5" />
-                  Baixar Nova Apresentação (PPTX)
-                </a>
+              <Button variant="outline" className="w-full justify-start" size="lg" disabled>
+                <Download className="mr-2 h-5 w-5" />
+                Baixar Nova Apresentação (PPTX) - Em breve
               </Button>
-              <Button variant="outline" className="w-full justify-start" size="lg" asChild>
-                <a href="#" download>
-                  <Download className="mr-2 h-5 w-5" />
-                  Baixar Novo Mapa de Assentos (PDF)
-                </a>
+              <Button variant="outline" className="w-full justify-start" size="lg" disabled>
+                <Download className="mr-2 h-5 w-5" />
+                Baixar Novo Mapa de Assentos (PDF) - Em breve
               </Button>
             </CardContent>
           </Card>
