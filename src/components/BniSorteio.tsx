@@ -8,6 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 import { membersData } from '@/data/membersData';
 import { Download, Upload, Users, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { generateSeatingMapPDF } from '@/lib/pdfGenerator';
+import { generatePresentationPPTX } from '@/lib/pptxGenerator';
 
 export function BniSorteio() {
   const [pptxFile, setPptxFile] = useState<File | null>(null);
@@ -15,7 +17,7 @@ export function BniSorteio() {
   const [palestrante2, setPalestrante2] = useState<string>('');
   const [showResults, setShowResults] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [csvData, setCsvData] = useState<string>('');
+  const [orderData, setOrderData] = useState<any[]>([]);
   const { toast } = useToast();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,7 +82,7 @@ export function BniSorteio() {
       if (error) throw error;
 
       if (data.success) {
-        setCsvData(data.csv);
+        setOrderData(data.order);
         setShowResults(true);
         toast({
           title: 'Sorteio realizado!',
@@ -100,7 +102,14 @@ export function BniSorteio() {
   };
 
   const downloadCSV = () => {
-    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    // Gerar CSV a partir dos dados
+    const csvHeader = 'Cadeira,Nome do Membro,Empresa,Referência Pedida\n';
+    const csvRows = orderData.map(m => 
+      `${m.cadeira},"${m.nome}","${m.empresa}","${m.atividade}"`
+    ).join('\n');
+    const csvContent = csvHeader + csvRows;
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
@@ -109,6 +118,67 @@ export function BniSorteio() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const downloadPPTX = async () => {
+    try {
+      toast({
+        title: 'Gerando apresentação...',
+        description: 'Isso pode levar alguns segundos.',
+      });
+
+      const pptxBlob = await generatePresentationPPTX(orderData);
+      
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(pptxBlob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `apresentacao_bni_${new Date().toISOString().split('T')[0]}.pptx`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: 'Sucesso!',
+        description: 'Apresentação PPTX gerada.',
+      });
+    } catch (error) {
+      console.error('Erro ao gerar PPTX:', error);
+      toast({
+        title: 'Erro',
+        description: 'Ocorreu um erro ao gerar o PPTX.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const downloadPDF = () => {
+    try {
+      const pdfBase64 = generateSeatingMapPDF(orderData);
+      const byteCharacters = atob(pdfBase64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'application/pdf' });
+      
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `mapa_assentos_${new Date().toISOString().split('T')[0]}.pdf`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      toast({
+        title: 'Erro',
+        description: 'Ocorreu um erro ao gerar o PDF.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const sortableMembers = membersData.filter(member => 
@@ -238,13 +308,23 @@ export function BniSorteio() {
                 <Download className="mr-2 h-5 w-5" />
                 Baixar Planilha de Ordem (CSV)
               </Button>
-              <Button variant="outline" className="w-full justify-start" size="lg" disabled>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start" 
+                size="lg" 
+                onClick={downloadPPTX}
+              >
                 <Download className="mr-2 h-5 w-5" />
-                Baixar Nova Apresentação (PPTX) - Em breve
+                Baixar Nova Apresentação (PPTX)
               </Button>
-              <Button variant="outline" className="w-full justify-start" size="lg" disabled>
+              <Button 
+                variant="outline" 
+                className="w-full justify-start" 
+                size="lg" 
+                onClick={downloadPDF}
+              >
                 <Download className="mr-2 h-5 w-5" />
-                Baixar Novo Mapa de Assentos (PDF) - Em breve
+                Baixar Novo Mapa de Assentos (PDF)
               </Button>
             </CardContent>
           </Card>

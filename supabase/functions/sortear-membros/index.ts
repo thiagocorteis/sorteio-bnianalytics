@@ -104,17 +104,11 @@ serve(async (req) => {
       }
     }
 
-    // Gerar CSV
-    const csvHeader = 'Cadeira,Nome do Membro,Empresa,Referência Pedida\n';
-    const csvRows = newOrder.map(m => 
-      `${m.cadeira},"${m.nome}","${m.empresa}","${m.atividade}"`
-    ).join('\n');
-    const csvContent = csvHeader + csvRows;
+    console.log('Sorteio concluído com sucesso');
 
     return new Response(
       JSON.stringify({
         success: true,
-        csv: csvContent,
         order: newOrder
       }),
       {
