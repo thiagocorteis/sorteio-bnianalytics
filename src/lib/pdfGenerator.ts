@@ -33,36 +33,36 @@ export const generateSeatingMapPDF = (members: Member[]): string => {
   const centerX = 148.5;
   const centerY = 120;
   const radius = 70;
-  const totalSeats = 20;
+  
+  // Filtrar apenas assentos regulares (excluindo palestrantes 86 e 87)
+  const regularSeats = members.filter(m => m.cadeira !== 86 && m.cadeira !== 87);
+  const totalSeats = regularSeats.length;
 
-  // Assentos principais (1-20) em círculo
-  for (let i = 0; i < totalSeats; i++) {
+  // Assentos principais em círculo
+  regularSeats.forEach((member, i) => {
     const angle = (i * 2 * Math.PI) / totalSeats - Math.PI / 2;
     const x = centerX + radius * Math.cos(angle);
     const y = centerY + radius * Math.sin(angle);
 
-    const member = members.find(m => m.cadeira === i + 1);
-    if (member) {
-      // Círculo do assento
-      pdf.setFillColor(0, 46, 93);
-      pdf.circle(x, y, 8, 'F');
-      
-      // Número da cadeira
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFontSize(10);
-      pdf.text(String(member.cadeira), x, y + 1, { align: 'center' });
-      
-      // Nome (fora do círculo)
-      pdf.setTextColor(0, 0, 0);
-      pdf.setFontSize(8);
-      const nameX = centerX + (radius + 20) * Math.cos(angle);
-      const nameY = centerY + (radius + 20) * Math.sin(angle);
-      pdf.text(member.nome, nameX, nameY, { 
-        align: 'center',
-        maxWidth: 30 
-      });
-    }
-  }
+    // Círculo do assento
+    pdf.setFillColor(0, 46, 93);
+    pdf.circle(x, y, 8, 'F');
+    
+    // Número da cadeira
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFontSize(10);
+    pdf.text(String(member.cadeira), x, y + 1, { align: 'center' });
+    
+    // Nome (fora do círculo)
+    pdf.setTextColor(0, 0, 0);
+    pdf.setFontSize(8);
+    const nameX = centerX + (radius + 20) * Math.cos(angle);
+    const nameY = centerY + (radius + 20) * Math.sin(angle);
+    pdf.text(member.nome, nameX, nameY, { 
+      align: 'center',
+      maxWidth: 30 
+    });
+  });
 
   // Palestrantes (86, 87) na parte inferior
   const speakerY = 180;

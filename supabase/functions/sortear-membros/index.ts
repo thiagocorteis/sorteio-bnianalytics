@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -6,11 +7,10 @@ const corsHeaders = {
 };
 
 interface Member {
-  id: number;
+  cadeira: number;
   nome: string;
   empresa: string;
   atividade: string;
-  cadeira: number;
 }
 
 serve(async (req) => {
@@ -19,45 +19,45 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     const formData = await req.formData();
     const palestrante1 = formData.get('palestrante1') as string;
     const palestrante2 = formData.get('palestrante2') as string;
     
     console.log('Recebido:', { palestrante1, palestrante2 });
 
-    // Dados dos membros
-    const membersData: Member[] = [
-      { id: 1, nome: 'VERONICA SOARES', empresa: 'AUDITIVE APARELHOS AUDITIVOS', atividade: 'Aparelhos auditivos e CPAP', cadeira: 1 },
-      { id: 2, nome: 'CARINE MENDES', empresa: 'DESIGN DE INTERIORES', atividade: 'Design de Interiores', cadeira: 2 },
-      { id: 3, nome: 'JOSE CARLOS SILVA', empresa: 'ADVOCACIA EMPRESARIAL', atividade: 'Advocacia Empresarial', cadeira: 3 },
-      { id: 4, nome: 'MARIA FERNANDA COSTA', empresa: 'CONTABILIDADE ESTRATÉGICA', atividade: 'Contabilidade', cadeira: 4 },
-      { id: 5, nome: 'ROBERTO ALMEIDA', empresa: 'SEGUROS EMPRESARIAIS', atividade: 'Seguros', cadeira: 5 },
-      { id: 6, nome: 'PATRICIA SANTOS', empresa: 'MARKETING DIGITAL', atividade: 'Marketing Digital', cadeira: 6 },
-      { id: 7, nome: 'FERNANDO OLIVEIRA', empresa: 'ENGENHARIA CIVIL', atividade: 'Engenharia', cadeira: 7 },
-      { id: 8, nome: 'JULIANA MARTINS', empresa: 'RECURSOS HUMANOS', atividade: 'RH', cadeira: 8 },
-      { id: 9, nome: 'CARLOS EDUARDO LIMA', empresa: 'TECNOLOGIA DA INFORMAÇÃO', atividade: 'TI', cadeira: 9 },
-      { id: 10, nome: 'AMANDA RODRIGUES', empresa: 'ARQUITETURA COMERCIAL', atividade: 'Arquitetura', cadeira: 10 },
-      { id: 11, nome: 'RAFAEL PEREIRA', empresa: 'CONSULTORIA FINANCEIRA', atividade: 'Finanças', cadeira: 11 },
-      { id: 12, nome: 'LUCIANA BARBOSA', empresa: 'IMOBILIÁRIA PREMIUM', atividade: 'Imóveis', cadeira: 12 },
-      { id: 13, nome: 'MARCELO CARVALHO', empresa: 'GRÁFICA DIGITAL', atividade: 'Gráfica', cadeira: 13 },
-      { id: 14, nome: 'DANIELA SOUZA', empresa: 'EVENTOS CORPORATIVOS', atividade: 'Eventos', cadeira: 14 },
-      { id: 15, nome: 'GUSTAVO FERNANDES', empresa: 'ENERGIA SOLAR', atividade: 'Energia Renovável', cadeira: 15 },
-      { id: 16, nome: 'BEATRIZ COSTA', empresa: 'NUTRIÇÃO FUNCIONAL', atividade: 'Nutrição', cadeira: 16 },
-      { id: 17, nome: 'RICARDO AZEVEDO', empresa: 'ADVOCACIA TRABALHISTA', atividade: 'Direito Trabalhista', cadeira: 17 },
-      { id: 18, nome: 'CAMILA NOGUEIRA', empresa: 'COACHING EXECUTIVO', atividade: 'Coaching', cadeira: 18 },
-      { id: 19, nome: 'THIAGO RIBEIRO', empresa: 'SEGURANÇA ELETRÔNICA', atividade: 'Segurança', cadeira: 19 },
-      { id: 20, nome: 'VANESSA MENDES', empresa: 'ESTÉTICA AVANÇADA', atividade: 'Estética', cadeira: 20 },
-    ];
+    // Buscar membros do banco de dados
+    const { data: membrosData, error: membrosError } = await supabase
+      .from('membros')
+      .select(`
+        id,
+        nome_membro,
+        nome_empresa,
+        cadeira_fixa,
+        numero_cadeira_fixa,
+        cargos (
+          descricao
+        )
+      `);
 
-    const fixedSeats = [8, 86, 87, 88, 89];
-    
-    // Separar membros fixos e sorteaveis
-    const fixedMembers = membersData.filter(m => fixedSeats.includes(m.cadeira));
-    const sortableMembers = membersData.filter(m => !fixedSeats.includes(m.cadeira));
+    if (membrosError) {
+      throw new Error(`Erro ao buscar membros: ${membrosError.message}`);
+    }
+
+    if (!membrosData || membrosData.length === 0) {
+      throw new Error('Nenhum membro encontrado no banco de dados');
+    }
+
+    // Separar membros com cadeira fixa e sorteaveis
+    const fixedMembers = membrosData.filter(m => m.cadeira_fixa && m.numero_cadeira_fixa);
+    const sortableMembers = membrosData.filter(m => !m.cadeira_fixa);
     
     // Encontrar os palestrantes
-    const speaker1 = sortableMembers.find(m => m.nome === palestrante1);
-    const speaker2 = sortableMembers.find(m => m.nome === palestrante2);
+    const speaker1 = sortableMembers.find(m => m.nome_membro === palestrante1);
+    const speaker2 = sortableMembers.find(m => m.nome_membro === palestrante2);
     
     if (!speaker1 || !speaker2) {
       throw new Error('Palestrantes não encontrados');
@@ -65,44 +65,71 @@ serve(async (req) => {
 
     // Remover palestrantes da lista de sorteaveis
     const remainingMembers = sortableMembers.filter(
-      m => m.nome !== palestrante1 && m.nome !== palestrante2
+      m => m.nome_membro !== palestrante1 && m.nome_membro !== palestrante2
     );
 
     // Randomizar membros restantes
     const shuffled = [...remainingMembers].sort(() => Math.random() - 0.5);
 
-    // Montar nova ordem
+    // Total de membros para determinar número de cadeiras
+    const totalMembers = membrosData.length;
     const newOrder: Member[] = [];
     let shuffledIndex = 0;
 
-    // Distribuir membros nas cadeiras de 1 a 20
-    for (let cadeira = 1; cadeira <= 20; cadeira++) {
-      if (cadeira === 8) {
-        // Cadeira fixa 8
-        const fixedMember = fixedMembers.find(m => m.cadeira === 8);
-        if (fixedMember) {
-          newOrder.push({ ...fixedMember, cadeira });
+    // Criar array de cadeiras disponíveis (excluindo 86 e 87 para palestrantes)
+    const availableSeats: number[] = [];
+    for (let i = 1; i <= totalMembers; i++) {
+      if (i !== 86 && i !== 87) {
+        availableSeats.push(i);
+      }
+    }
+
+    // Primeiro, alocar membros com cadeira fixa
+    for (const fixedMember of fixedMembers) {
+      if (fixedMember.numero_cadeira_fixa) {
+        const seatIndex = availableSeats.indexOf(fixedMember.numero_cadeira_fixa);
+        if (seatIndex > -1) {
+          availableSeats.splice(seatIndex, 1); // Remover cadeira ocupada
         }
-      } else {
-        // Atribuir próximo membro randomizado
-        if (shuffledIndex < shuffled.length) {
-          newOrder.push({ ...shuffled[shuffledIndex], cadeira });
-          shuffledIndex++;
-        }
+        newOrder.push({
+          cadeira: fixedMember.numero_cadeira_fixa,
+          nome: fixedMember.nome_membro,
+          empresa: fixedMember.nome_empresa,
+          atividade: fixedMember.cargos?.descricao || '',
+        });
+      }
+    }
+
+    // Distribuir membros embaralhados nas cadeiras restantes
+    for (const seat of availableSeats) {
+      if (shuffledIndex < shuffled.length) {
+        const member = shuffled[shuffledIndex];
+        newOrder.push({
+          cadeira: seat,
+          nome: member.nome_membro,
+          empresa: member.nome_empresa,
+          atividade: member.cargos?.descricao || '',
+        });
+        shuffledIndex++;
       }
     }
 
     // Adicionar palestrantes nas posições 86 e 87
-    newOrder.push({ ...speaker1, cadeira: 86 });
-    newOrder.push({ ...speaker2, cadeira: 87 });
+    newOrder.push({
+      cadeira: 86,
+      nome: speaker1.nome_membro,
+      empresa: speaker1.nome_empresa,
+      atividade: speaker1.cargos?.descricao || '',
+    });
+    newOrder.push({
+      cadeira: 87,
+      nome: speaker2.nome_membro,
+      empresa: speaker2.nome_empresa,
+      atividade: speaker2.cargos?.descricao || '',
+    });
 
-    // Adicionar demais membros fixos (88, 89)
-    for (const seat of [88, 89]) {
-      const fixedMember = fixedMembers.find(m => m.cadeira === seat);
-      if (fixedMember) {
-        newOrder.push({ ...fixedMember, cadeira: seat });
-      }
-    }
+    // Ordenar por número de cadeira
+    newOrder.sort((a, b) => a.cadeira - b.cadeira);
 
     console.log('Sorteio concluído com sucesso');
 

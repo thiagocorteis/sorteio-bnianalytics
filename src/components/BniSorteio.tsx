@@ -1,15 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { membersData } from '@/data/membersData';
 import { Download, Upload, Users, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { generateSeatingMapPDF } from '@/lib/pdfGenerator';
 import { generatePresentationPPTX } from '@/lib/pptxGenerator';
+
+interface Membro {
+  id: string;
+  nome_membro: string;
+  nome_empresa: string;
+  cadeira_fixa: boolean;
+  numero_cadeira_fixa: number | null;
+  cargo_id: string | null;
+  cargos?: {
+    cargo: string;
+    descricao: string;
+  };
+}
 
 export function BniSorteio() {
   const [pptxFile, setPptxFile] = useState<File | null>(null);
@@ -18,7 +30,56 @@ export function BniSorteio() {
   const [showResults, setShowResults] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [orderData, setOrderData] = useState<any[]>([]);
+  const [membros, setMembros] = useState<Membro[]>([]);
+  const [equipeNome, setEquipeNome] = useState<string>('');
+  const [equipeLogo, setEquipeLogo] = useState<string>('');
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Buscar equipe BNI
+        const { data: equipe } = await supabase
+          .from('equipes_bni')
+          .select('nome_equipe, url_logotipo')
+          .single();
+        
+        if (equipe) {
+          setEquipeNome(equipe.nome_equipe);
+          setEquipeLogo(equipe.url_logotipo || '');
+        }
+
+        // Buscar membros
+        const { data: membrosData } = await supabase
+          .from('membros')
+          .select(`
+            id,
+            nome_membro,
+            nome_empresa,
+            cadeira_fixa,
+            numero_cadeira_fixa,
+            cargo_id,
+            cargos (
+              cargo,
+              descricao
+            )
+          `);
+        
+        if (membrosData) {
+          setMembros(membrosData);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar dados:', error);
+        toast({
+          title: 'Erro',
+          description: 'Não foi possível carregar os dados.',
+          variant: 'destructive',
+        });
+      }
+    };
+
+    fetchData();
+  }, [toast]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -102,12 +163,12 @@ export function BniSorteio() {
   };
 
   const downloadCSV = () => {
-    // Gerar CSV a partir dos dados
-    const csvHeader = 'Cadeira,Nome do Membro,Empresa,Referência Pedida\n';
+    // Gerar CSV a partir dos dados com UTF-8 BOM para Excel
+    const csvHeader = 'Cadeira,Nome do Membro,Empresa\n';
     const csvRows = orderData.map(m => 
-      `${m.cadeira},"${m.nome}","${m.empresa}","${m.atividade}"`
+      `${m.cadeira},"${m.nome}","${m.empresa}"`
     ).join('\n');
-    const csvContent = csvHeader + csvRows;
+    const csvContent = '\uFEFF' + csvHeader + csvRows; // BOM para UTF-8
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -127,7 +188,7 @@ export function BniSorteio() {
         description: 'Isso pode levar alguns segundos.',
       });
 
-      const pptxBlob = await generatePresentationPPTX(orderData);
+      const pptxBlob = await generatePresentationPPTX(orderData, pptxFile || undefined);
       
       const link = document.createElement('a');
       const url = URL.createObjectURL(pptxBlob);
@@ -181,20 +242,34 @@ export function BniSorteio() {
     }
   };
 
-  const sortableMembers = membersData.filter(member => 
-    ![8, 86, 87, 88, 89].includes(member.cadeira)
-  );
+  // Filtrar membros sorteáveis (sem cadeira fixa)
+  const sortableMembers = membros.filter(m => !m.cadeira_fixa);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-secondary/20 to-background py-8 px-4">
       <div className="container max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold text-primary mb-3">
-            Sistema de Sorteio BNI
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Gerador de ordem de apresentação para reuniões semanais
-          </p>
+        {/* Header com logo e nome da equipe */}
+        <div className="flex items-center justify-center gap-4 mb-8">
+          {equipeLogo && (
+            <img 
+              src={equipeLogo} 
+              alt="Logo BNI" 
+              className="h-16 w-auto object-contain"
+            />
+          )}
+          <div className="text-center">
+            {equipeNome && (
+              <h2 className="text-2xl font-bold text-primary mb-1">
+                {equipeNome}
+              </h2>
+            )}
+            <h1 className="text-3xl md:text-4xl font-bold text-primary">
+              Sistema de Sorteio BNI
+            </h1>
+            <p className="text-muted-foreground text-lg">
+              Gerador de ordem de apresentação para reuniões semanais
+            </p>
+          </div>
         </div>
 
         <Card className="shadow-lg">
@@ -243,8 +318,8 @@ export function BniSorteio() {
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
                     {sortableMembers.map((member) => (
-                      <SelectItem key={member.id} value={member.nome}>
-                        {member.nome} - {member.empresa}
+                      <SelectItem key={member.id} value={member.nome_membro}>
+                        {member.nome_membro} - {member.nome_empresa}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -264,10 +339,10 @@ export function BniSorteio() {
                     {sortableMembers.map((member) => (
                       <SelectItem 
                         key={member.id} 
-                        value={member.nome}
-                        disabled={member.nome === palestrante1}
+                        value={member.nome_membro}
+                        disabled={member.nome_membro === palestrante1}
                       >
-                        {member.nome} - {member.empresa}
+                        {member.nome_membro} - {member.nome_empresa}
                       </SelectItem>
                     ))}
                   </SelectContent>
