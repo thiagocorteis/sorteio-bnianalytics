@@ -14,7 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      cargos: {
+        Row: {
+          cargo: string
+          created_at: string | null
+          descricao: string | null
+          id: string
+        }
+        Insert: {
+          cargo: string
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+        }
+        Update: {
+          cargo?: string
+          created_at?: string | null
+          descricao?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      equipes_bni: {
+        Row: {
+          created_at: string | null
+          id: string
+          nome_equipe: string
+          updated_at: string | null
+          url_logotipo: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          nome_equipe: string
+          updated_at?: string | null
+          url_logotipo?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          nome_equipe?: string
+          updated_at?: string | null
+          url_logotipo?: string | null
+        }
+        Relationships: []
+      }
+      membros: {
+        Row: {
+          cadeira_fixa: boolean | null
+          cargo_id: string | null
+          created_at: string | null
+          id: string
+          nome_empresa: string
+          nome_membro: string
+          numero_cadeira_fixa: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          cadeira_fixa?: boolean | null
+          cargo_id?: string | null
+          created_at?: string | null
+          id?: string
+          nome_empresa: string
+          nome_membro: string
+          numero_cadeira_fixa?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          cadeira_fixa?: boolean | null
+          cargo_id?: string | null
+          created_at?: string | null
+          id?: string
+          nome_empresa?: string
+          nome_membro?: string
+          numero_cadeira_fixa?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "membros_cargo_id_fkey"
+            columns: ["cargo_id"]
+            isOneToOne: false
+            referencedRelation: "cargos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
