@@ -254,16 +254,17 @@ export default function CadastroMembros() {
                       <TableCell>{membro.nome_empresa}</TableCell>
                       <TableCell>
                         <Select
-                          value={membro.cargo_id || ""}
+                          value={membro.cargo_id || "none"}
                           onValueChange={(value) =>
-                            updateMembro(membro.id, "cargo_id", value)
+                            updateMembro(membro.id, "cargo_id", value === "none" ? null : value)
                           }
                         >
                           <SelectTrigger className="w-40">
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                           <SelectContent>
-                            {cargos.map((cargo) => (
+                            <SelectItem value="none">Nenhum</SelectItem>
+                            {cargos.filter(c => c.id).map((cargo) => (
                               <SelectItem key={cargo.id} value={cargo.id}>
                                 {cargo.cargo}
                               </SelectItem>
