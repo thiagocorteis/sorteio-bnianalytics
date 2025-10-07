@@ -139,13 +139,43 @@ export default function CadastroMembros() {
         throw new Error("Arquivo vazio ou formato inválido");
       }
 
-      const membrosToInsert = rows.map((row) => ({
-        nome_membro: row.nome || row.name || "",
-        nome_empresa: row.empresa || row.company || row.empresa || "",
-        cadeira_fixa: false,
-        numero_cadeira_fixa: null,
-        cargo_id: null,
-      }));
+      // Get default "Membro" cargo ID
+      const { data: defaultCargo } = await supabase
+        .from("cargos")
+        .select("id")
+        .eq("cargo", "Membro")
+        .single();
+
+      const defaultCargoId = defaultCargo?.id || null;
+
+      // Map cargo names to IDs
+      const membrosToInsert = await Promise.all(
+        rows.map(async (row) => {
+          let cargoId = defaultCargoId;
+          
+          // If cargo column exists in CSV, try to find matching cargo
+          const cargoName = row.cargo || row.role || "";
+          if (cargoName) {
+            const { data: cargo } = await supabase
+              .from("cargos")
+              .select("id")
+              .ilike("cargo", cargoName)
+              .single();
+            
+            if (cargo) {
+              cargoId = cargo.id;
+            }
+          }
+
+          return {
+            nome_membro: row.nome || row.name || "",
+            nome_empresa: row.empresa || row.company || "",
+            cadeira_fixa: false,
+            numero_cadeira_fixa: null,
+            cargo_id: cargoId,
+          };
+        })
+      );
 
       const { error } = await supabase.from("membros").insert(membrosToInsert);
 
