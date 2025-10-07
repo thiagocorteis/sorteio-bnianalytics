@@ -7,7 +7,7 @@ import { AppLayout } from "@/components/AppLayout";
 import Index from "./pages/Index";
 import CadastroBni from "./pages/CadastroBni";
 import CadastroCargos from "./pages/CadastroCargos";
-import CadastroMembros from "./pages/CadastroMembros";
+import { CadastroMembros } from "./pages/CadastroMembros";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
