@@ -25,8 +25,8 @@ interface Membro {
 
 export function BniSorteio() {
   const [pptxFile, setPptxFile] = useState<File | null>(null);
-  const [palestrante1, setPalestrante1] = useState<string>('');
-  const [palestrante2, setPalestrante2] = useState<string>('');
+  const [palestrante1, setPalestrante1] = useState<string | undefined>(undefined);
+  const [palestrante2, setPalestrante2] = useState<string | undefined>(undefined);
   const [showResults, setShowResults] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [orderData, setOrderData] = useState<any[]>([]);
@@ -317,11 +317,13 @@ export function BniSorteio() {
                     <SelectValue placeholder="Escolha o primeiro palestrante" />
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
-                    {sortableMembers.map((member) => (
-                      <SelectItem key={member.id} value={member.nome_membro}>
-                        {member.nome_membro} - {member.nome_empresa}
-                      </SelectItem>
-                    ))}
+                    {sortableMembers
+                      .filter(member => member.nome_membro && member.nome_membro.trim() !== '')
+                      .map((member) => (
+                        <SelectItem key={member.id} value={member.nome_membro}>
+                          {member.nome_membro} - {member.nome_empresa}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -336,15 +338,17 @@ export function BniSorteio() {
                     <SelectValue placeholder="Escolha o segundo palestrante" />
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
-                    {sortableMembers.map((member) => (
-                      <SelectItem 
-                        key={member.id} 
-                        value={member.nome_membro}
-                        disabled={member.nome_membro === palestrante1}
-                      >
-                        {member.nome_membro} - {member.nome_empresa}
-                      </SelectItem>
-                    ))}
+                    {sortableMembers
+                      .filter(member => member.nome_membro && member.nome_membro.trim() !== '')
+                      .map((member) => (
+                        <SelectItem 
+                          key={member.id} 
+                          value={member.nome_membro}
+                          disabled={member.nome_membro === palestrante1}
+                        >
+                          {member.nome_membro} - {member.nome_empresa}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
