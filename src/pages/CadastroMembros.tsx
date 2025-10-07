@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import * as XLSX from "xlsx";
 import {
   Table,
   TableBody,
@@ -89,6 +90,33 @@ export default function CadastroMembros() {
     return data;
   };
 
+  const parseExcel = async (file: File): Promise<any[]> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: "array" });
+    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+    if (jsonData.length < 2) return [];
+
+    const headers = (jsonData[0] as any[]).map((h: any) => 
+      String(h).trim().toLowerCase()
+    );
+    const data = [];
+
+    for (let i = 1; i < jsonData.length; i++) {
+      const row = jsonData[i] as any[];
+      const obj: any = {};
+      headers.forEach((header, index) => {
+        obj[header] = row[index] ? String(row[index]).trim() : "";
+      });
+      if (obj[headers[0]]) { // Only add rows with data in first column
+        data.push(obj);
+      }
+    }
+
+    return data;
+  };
+
   const handleFileUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) return;
@@ -96,8 +124,16 @@ export default function CadastroMembros() {
     setLoading(true);
 
     try {
-      const text = await file.text();
-      const rows = parseCSV(text);
+      let rows: any[] = [];
+      
+      const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+      
+      if (isExcel) {
+        rows = await parseExcel(file);
+      } else {
+        const text = await file.text();
+        rows = parseCSV(text);
+      }
 
       if (rows.length === 0) {
         throw new Error("Arquivo vazio ou formato inválido");
@@ -105,7 +141,7 @@ export default function CadastroMembros() {
 
       const membrosToInsert = rows.map((row) => ({
         nome_membro: row.nome || row.name || "",
-        nome_empresa: row.empresa || row.company || "",
+        nome_empresa: row.empresa || row.company || row.empresa || "",
         cadeira_fixa: false,
         numero_cadeira_fixa: null,
         cargo_id: null,
