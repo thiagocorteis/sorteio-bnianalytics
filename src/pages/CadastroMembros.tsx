@@ -84,13 +84,30 @@ export function CadastroMembros() {
       skipEmptyLines: true,
       transformHeader: header => header.trim(),
       complete: async (results) => {
+        console.log('CSV Headers:', results.meta.fields);
+        console.log('CSV Data (primeiras linhas):', results.data.slice(0, 3));
+        
         const newMembers: Omit<Member, 'id'>[] = results.data
           .map((row: any) => {
-            const nomeMembro = row['Nome'] || row['nome_membro'];
-            const nomeEmpresa = row['Empresa'] || row['nome_empresa'];
-            const cargoNome = (row['Cargo'] || row['cargo'] || 'Membro').toLowerCase();
+            // Busca case-insensitive e flexível para os nomes das colunas
+            const findValue = (possibleNames: string[]) => {
+              for (const name of possibleNames) {
+                const key = Object.keys(row).find(k => 
+                  k.toLowerCase().trim() === name.toLowerCase().trim()
+                );
+                if (key && row[key]) return row[key];
+              }
+              return null;
+            };
+
+            const nomeMembro = findValue(['Nome', 'nome', 'nome_membro', 'nome membro', 'member', 'membro']);
+            const nomeEmpresa = findValue(['Empresa', 'empresa', 'nome_empresa', 'nome empresa', 'company']);
+            const cargoNome = (findValue(['Cargo', 'cargo', 'position', 'role']) || 'Membro').toLowerCase();
+
+            console.log('Parsed row:', { nomeMembro, nomeEmpresa, cargoNome });
 
             if (!nomeMembro || !nomeEmpresa) {
+              console.warn('Linha ignorada por falta de dados:', row);
               return null;
             }
             
