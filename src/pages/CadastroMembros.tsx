@@ -108,13 +108,12 @@ export function CadastroMembros() {
           .filter((member): member is Member => member !== null);
 
         if (newMembers.length > 0) {
-          const { error } = await supabase.from('membros').upsert(
+          const { error } = await supabase.from('membros').insert(
             newMembers.map(m => ({
               nome_membro: m.nome_membro,
               nome_empresa: m.nome_empresa,
               cargo_id: m.cargo_id,
-            })),
-            { onConflict: 'nome_membro' } // Atualiza se o nome do membro já existir
+            }))
           );
 
           if (error) {
