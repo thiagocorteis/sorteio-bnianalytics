@@ -8,7 +8,7 @@ interface Member {
   cadeira: number;
 }
 
-export const generateSeatingMapPDF = (members: Member[]): string => {
+export const generateSeatingMapPDF = (members: Member[]): Blob => {
   const pdf = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
@@ -92,5 +92,5 @@ export const generateSeatingMapPDF = (members: Member[]): string => {
   pdf.setFontSize(8);
   pdf.text('Sistema de Sorteio BNI', 148.5, 205, { align: 'center' });
 
-  return pdf.output('datauristring').split(',')[1];
+  return pdf.output('blob');
 };

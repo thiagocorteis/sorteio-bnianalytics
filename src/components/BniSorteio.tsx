@@ -213,25 +213,30 @@ export function BniSorteio() {
     }
   };
 
-  const downloadPDF = () => {
+  const downloadPDF = async () => {
     try {
-      const pdfBase64 = generateSeatingMapPDF(orderData);
-      const byteCharacters = atob(pdfBase64);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'application/pdf' });
+      toast({
+        title: 'Gerando o mapa em PDF...',
+        description: 'Isso pode levar alguns segundos.',
+      });
+
+      // Generate the PDF as a Blob directly
+      const pdfBlob = await generateSeatingMapPDF(orderData);
       
+      // Create a download link from the Blob
       const link = document.createElement('a');
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(pdfBlob);
       link.setAttribute('href', url);
       link.setAttribute('download', `mapa_assentos_${new Date().toISOString().split('T')[0]}.pdf`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+
+      toast({
+        title: 'Sucesso!',
+        description: 'O mapa de assentos em PDF foi gerado.',
+      });
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);
       toast({
