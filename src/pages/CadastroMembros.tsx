@@ -82,6 +82,7 @@ export function CadastroMembros() {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
+      transformHeader: header => header.trim(),
       complete: async (results) => {
         const newMembers: Omit<Member, 'id'>[] = results.data
           .map((row: any) => {
